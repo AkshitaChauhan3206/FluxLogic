@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% block title %}FluxLogic{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            /* Default Dark Theme Variables */
+            --bg-body: #0f172a;
+            --bg-sidebar: #1e293b;
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --bg-card-inner: rgba(15, 23, 42, 0.5);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.2);
+            --bg-input: rgba(15, 23, 42, 0.6);
+            --text-input: #ffffff;
+            --border: rgba(255, 255, 255, 0.08);
+            --sidebar-width: 260px;
+            --font-base: {{ current_user.font_size if current_user.is_authenticated else '16' }}px;
+        }
+
+        /* Light Theme Override */
+        [data-theme="light"] {
+            --bg-body: #f8fafc;
+            --bg-sidebar: #ffffff;
+            --bg-card: #ffffff;
+            --bg-card-inner: #f1f5f9; /* Light grey for inner panels */
+            --text-main: #020617; 
+            --text-muted: #475569; 
+            --primary: #4f46e5;
+            --primary-glow: rgba(79, 70, 229, 0.08);
+            --bg-input: #f1f5f9;
+            --text-input: #020617;
+            --border: rgba(0, 0, 0, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-body);
+            color: var(--text-main);
+            font-size: var(--font-base);
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        h1, h2, h3, h4 { color: var(--text-main); font-weight: 800; line-height: 1.2; margin-bottom: 1rem; }
+        h1 { font-size: 2.6rem; letter-spacing: -1.5px; }
+        h2 { font-size: 2rem; letter-spacing: -1px; }
+        p { font-size: 1.1rem; line-height: 1.8; color: var(--text-muted); }
+        strong { color: var(--text-main); font-weight: 700; }
+
+        /* Global Giant Heading System */
+        .header-text h1, .header-section h1 { font-size: 3.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 8px; letter-spacing: -2px; }
+        .header-text p, .header-section p { font-size: 1.4rem; color: var(--text-muted); font-weight: 500; line-height: 1.6; max-width: 800px; }
+        
+        @media (max-width: 768px) {
+            .header-text h1, .header-section h1 { font-size: 2.5rem; }
+            .header-text p, .header-section p { font-size: 1.1rem; }
+        }
+
+        /* ─── SIDEBAR ─── */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            height: 100vh;
+            position: fixed;
+            left: 0; top: 0;
+            display: flex; flex-direction: column;
+            z-index: 1000;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .logo-area {
+            padding: 32px 24px;
+            font-size: 32px; font-weight: 800;
+            color: var(--primary);
+            letter-spacing: -1.5px;
+        }
+
+        .nav-links { flex: 1; padding: 0 12px; }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 14px 16px; border-radius: 12px;
+            color: var(--text-muted); text-decoration: none;
+            margin-bottom: 4px; font-weight: 600;
+            transition: all 0.2s;
+        }
+        .nav-item i { width: 20px; font-size: 18px; }
+        .nav-item:hover, .nav-item.active {
+            background: var(--primary-glow); color: var(--primary);
+        }
+
+        .user-section {
+            padding: 20px; border-top: 1px solid var(--border);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .user-avatar {
+            width: 40px; height: 40px; border-radius: 12px;
+            background: var(--primary); display: flex; align-items: center;
+            justify-content: center; font-weight: 800; color: white;
+        }
+        .user-info { overflow: hidden; }
+        .user-name { display: block; font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .user-role { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* ─── MAIN CONTENT ─── */
+        .main-content {
+            flex: 1; margin-left: var(--sidebar-width);
+            padding: 40px; min-width: 0;
+            transition: margin-left 0.3s;
+        }
+
+        /* ─── MOBILE HEADER ─── */
+        .mobile-header {
+            display: none; position: fixed; top: 0; left: 0; right: 0;
+            height: 64px; background: var(--bg-sidebar);
+            border-bottom: 1px solid var(--border);
+            align-items: center; justify-content: space-between;
+            padding: 0 20px; z-index: 999;
+        }
+        .menu-btn {
+            background: none; border: none; color: var(--text-main);
+            font-size: 24px; cursor: pointer;
+        }
+
+        /* ─── FLASH MESSAGES ─── */
+        .flash-messages {
+            max-width: 600px; margin: 0 auto 24px;
+        }
+        .flash {
+            padding: 14px 20px; border-radius: 12px;
+            margin-bottom: 10px; font-weight: 600;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .flash.success { background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
+        .flash.error { background: rgba(239, 68, 68, 0.1); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.2); }
+        .flash.warning { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); }
+        .flash.info { background: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.2); }
+
+        /* ─── RESPONSIVENESS ─── */
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; padding: 100px 20px 40px; }
+            .mobile-header { display: flex; }
+            .sidebar-overlay {
+                display: none; position: fixed; inset: 0;
+                background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+                z-index: 998;
+            }
+            .sidebar-overlay.active { display: block; }
+        }
+
+        @media (max-width: 640px) {
+            .main-content { padding-top: 84px; }
+            h1 { font-size: 24px !important; }
+        }
+
+        /* Utilities */
+        .btn-primary {
+            background: var(--primary); color: white; border: none;
+            padding: 12px 24px; border-radius: 10px; font-weight: 700;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body data-theme="{{ current_user.theme_preference if current_user.is_authenticated else 'dark' }}">
+    
+    {% if current_user.is_authenticated %}
+    <div class="mobile-header">
+        <button class="menu-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <div class="logo-area" style="padding: 0">FluxLogic</div>
+        <div style="width: 40px"></div> <!-- Spacer -->
+    </div>
+
+    <div class="sidebar-overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="logo-area">FluxLogic</div>
+        <nav class="nav-links">
+            <a href="{{ url_for('datasets') }}" class="nav-item {{ 'active' if request.endpoint == 'datasets' }}">
+                <i class="fas fa-database"></i> Datasets
+            </a>
+            <a href="{{ url_for('settings') }}" class="nav-item {{ 'active' if request.endpoint == 'settings' }}">
+                <i class="fas fa-cog"></i> Settings
+            </a>
+            <a href="{{ url_for('logout') }}" class="nav-item" style="margin-top: 20px; color: #fca5a5">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </nav>
+        
+        <div class="user-section">
+            <div class="user-avatar">{{ current_user.username[0].upper() }}</div>
+            <div class="user-info">
+                <span class="user-name">{{ current_user.username }}</span>
+                <span class="user-role">Business Pro</span>
+            </div>
+        </div>
+    </aside>
+    {% endif %}
+
+    <main class="main-content">
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">
+                            {% if category == 'success' %}
+                                <i class="fas fa-check-circle"></i>
+                            {% elif category == 'error' %}
+                                <i class="fas fa-exclamation-circle"></i>
+                            {% elif category == 'warning' %}
+                                <i class="fas fa-exclamation-triangle"></i>
+                            {% else %}
+                                <i class="fas fa-info-circle"></i>
+                            {% endif %}
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('overlay').classList.toggle('active');
+        }
+
+        // Apply theme preference from user settings if dynamic change is needed
+        // (Simplified: handled by data-theme attribute on body via Jinja2)
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

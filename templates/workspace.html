@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="space-y-6 max-w-6xl mx-auto mt-4">
+  <div class="mb-8">
+    <h2 class="text-3xl font-bold text-sky-400">Your Workspace</h2>
+    <p class="text-slate-400 mt-2">Manage your datasets, history, and activity in one secure place.</p>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-8">
+    
+    <!-- Datasets Management -->
+    <div class="panel border-slate-700">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="panel-title mb-0 text-xl text-white">Dataset Vault</h3>
+        <a href="{{ url_for('datasets') }}" class="btn !w-auto !py-2 !px-4 text-sm bg-sky-600 hover:bg-sky-500">+ Upload New</a>
+      </div>
+      
+      {% if datasets %}
+        <div class="space-y-3">
+          {% for ds in datasets %}
+            <div class="p-3 bg-slate-800/50 rounded-xl border border-slate-700 flex justify-between items-center">
+              <div>
+                <p class="font-semibold text-slate-200">{{ ds.original_name }}</p>
+                <p class="text-xs text-slate-500">{{ ds.uploaded_at.strftime('%b %d, %Y - %H:%M') }}</p>
+              </div>
+              <div class="flex gap-2">
+                <a href="{{ url_for('dataset_options', dataset_id=ds.id) }}" class="btn !w-auto !py-1 !px-3 text-xs bg-slate-700 hover:bg-slate-600">Open</a>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-slate-500 italic">No datasets uploaded yet.</p>
+      {% endif %}
+    </div>
+
+    <!-- Activity Logs -->
+    <div class="panel border-slate-700">
+      <h3 class="panel-title mb-6 text-xl text-white">Recent Activity</h3>
+      
+      <div class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+        {% for log in logs %}
+          <div class="flex gap-4 items-start">
+            <div class="w-2 h-2 mt-2 rounded-full bg-sky-500 shrink-0 shadow-[0_0_8px_rgba(56,189,248,0.8)]"></div>
+            <div>
+              <p class="text-slate-300 text-sm">{{ log.action }}</p>
+              <p class="text-xs text-slate-500">{{ log.timestamp.strftime('%b %d, %H:%M') }}</p>
+            </div>
+          </div>
+        {% else %}
+          <p class="text-slate-500 italic">No recent activity.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

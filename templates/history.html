@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="space-y-6">
+  <h2 class="text-2xl font-bold text-sky-400">History</h2>
+
+  <form method="get" class="panel flex gap-3 items-end">
+    <div class="flex-1">
+      <label class="label">Select Month</label>
+      <input type="month" name="month" class="input" value="{{ request.args.get('month', '') }}">
+    </div>
+    <button class="btn" type="submit">Show Snapshot</button>
+  </form>
+
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="statbox">Income<br><span class="stat text-green-400">{{ "%.2f"|format(snapshot_income) }}</span></div>
+    <div class="statbox">Expenses<br><span class="stat text-red-400">{{ "%.2f"|format(snapshot_expenses) }}</span></div>
+  </div>
+
+  <div class="panel overflow-x-auto">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td>{{ log.timestamp.strftime("%d-%m-%Y %H:%M") }}</td>
+          <td>{{ log.action }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

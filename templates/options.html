@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Analyze {{ dataset.original_name }} - FluxLogic{% endblock %}
+
+{% block content %}
+<div class="options-container">
+    <div class="breadcrumb">
+        <a href="{{ url_for('datasets') }}">Datasets</a> &rarr; <span>{{ dataset.original_name }}</span>
+    </div>
+
+    <div class="header-section">
+        <h1>Analysis Workflow</h1>
+        <p class="main-desc">Choose how you want to interact with <strong>{{ dataset.original_name }}</strong>. FluxLogic AI is ready to provide deep insights.</p>
+    </div>
+
+    <div class="options-grid">
+        <!-- Option 1: AI Chat -->
+        <a href="{{ url_for('dataset_chat', dataset_id=dataset.id) }}" class="option-card primary">
+            <div class="card-glow"></div>
+            <div class="icon-circle"><i class="fas fa-comment-dots"></i></div>
+            <div class="card-content">
+                <h3>AI Business Assistant</h3>
+                <p>Chat with your data using natural language. Ask questions, find trends, and get strategic advice instantly.</p>
+                <span class="btn-action">Start Chatting &rarr;</span>
+            </div>
+        </a>
+
+        <!-- Option 2: Dashboard -->
+        <a href="{{ url_for('dataset_dashboard', dataset_id=dataset.id) }}" class="option-card">
+            <div class="icon-circle"><i class="fas fa-chart-pie"></i></div>
+            <div class="card-content">
+                <h3>Intelligence Dashboard</h3>
+                <p>Visualize your dataset with automated interactive charts. Identify key metrics and distributions at a glance.</p>
+                <span class="btn-action">View Visuals &rarr;</span>
+            </div>
+        </a>
+
+        <!-- Option 3: Predictions -->
+        <a href="{{ url_for('dataset_predictions', dataset_id=dataset.id) }}" class="option-card">
+            <div class="icon-circle"><i class="fas fa-brain"></i></div>
+            <div class="card-content">
+                <h3>Deep Analysis & Predictions</h3>
+                <p>Generate a comprehensive business report with statistical insights and AI-driven growth recommendations.</p>
+                <span class="btn-action">Run Analysis &rarr;</span>
+            </div>
+        </a>
+    </div>
+</div>
+
+<style>
+    .options-container { max-width: 1200px; margin: 0 auto; padding-bottom: 60px; }
+    .breadcrumb { margin-bottom: 24px; color: var(--text-muted); font-size: 16px; font-weight: 600; }
+    .breadcrumb a { color: var(--primary); text-decoration: none; }
+
+    .main-desc { font-size: 1.5rem !important; color: var(--text-main) !important; font-weight: 600 !important; line-height: 1.6; margin-top: 16px; }
+
+    .options-grid { display: grid; grid-template-columns: 1fr; gap: 32px; }
+    @media (min-width: 900px) { .options-grid { grid-template-columns: repeat(3, 1fr); } }
+
+    .option-card {
+        background: var(--bg-card);
+        border: 2px solid var(--border);
+        padding: 40px;
+        border-radius: 32px;
+        text-decoration: none;
+        color: var(--text-main);
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    }
+    .option-card:hover { transform: translateY(-12px); border-color: var(--primary); background: var(--bg-card-inner); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); }
+
+    .option-card.primary {
+        background: linear-gradient(135deg, var(--primary-glow) 0%, var(--bg-card) 100%);
+        border: 2px solid var(--primary);
+    }
+
+    .icon-circle {
+        width: 80px; height: 80px; border-radius: 24px;
+        background: rgba(99,102,241,0.1); color: var(--primary);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 32px; z-index: 1;
+    }
+    .option-card.primary .icon-circle { background: var(--primary); color: white; }
+
+    .card-content { display: flex; flex-direction: column; gap: 16px; z-index: 1; }
+    .card-content h3 { font-size: 24px; font-weight: 800; color: var(--text-main); }
+    .card-content p { font-size: 18px; color: var(--text-main); line-height: 1.6; flex: 1; font-weight: 600; }
+
+    .btn-action {
+        margin-top: 12px; font-weight: 800; color: var(--primary); font-size: 18px;
+        transition: transform 0.2s; display: inline-block;
+    }
+    .option-card:hover .btn-action { transform: translateX(8px); }
+</style>
+{% endblock %}
