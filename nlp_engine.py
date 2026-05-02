@@ -1,4 +1,5 @@
 import re
+import os
 import pandas as pd
 import numpy as np
 import random
@@ -73,29 +74,42 @@ def profile_dataset(df):
     return val_col, cat_col, date_col, numeric_cols, currency
 
 def detect_currency(df):
-    """Detects currency symbol from column names or data content."""
+    """Detects currency symbol from column names, data content, or context."""
     symbols = {'₹': '₹', '$': '$', '€': '€', '£': '£', '¥': '¥'}
-    # Check column names
+    
+    # 1. Check for currency-related keywords in column names
+    rupee_keywords = ['india', 'rupee', 'inr', '₹']
     for col in df.columns:
+        c_low = col.lower()
+        if any(kw in c_low for kw in rupee_keywords):
+            return '₹'
         for sym, char in symbols.items():
             if char in col:
                 return char
-    # Check data (first few rows of object columns)
+
+    # 2. Check data content (first 50 rows)
     for col in df.select_dtypes(include=['object']).columns:
         try:
-            sample = df[col].dropna().head(20).astype(str)
+            sample = df[col].dropna().head(50).astype(str)
+            if sample.str.contains('₹|Rupee|INR', case=False).any():
+                return '₹'
             for sym, char in symbols.items():
                 if sample.str.contains(re.escape(char)).any():
                     return char
         except: continue
-    return '₹' if any('india' in str(c).lower() or 'rupee' in str(c).lower() for c in df.columns) else '$'
+        
+    # 3. Fallback to $
+    return '$'
 
-def fmt(val, symbol='$'):
+def fmt(val, symbol=None):
+    # If no symbol is provided, we should ideally have one from detect_currency
+    # But since fmt is used in many places, we'll default to $ if None
+    s = symbol if symbol else '$'
     try:
         if pd.isna(val): return "N/A"
-        if abs(val) >= 1_000_000: return f"{symbol}{val/1_000_000:,.2f}M"
-        if abs(val) >= 1_000: return f"{symbol}{val:,.2f}"
-        return f"{symbol}{val:.2f}"
+        if abs(val) >= 1_000_000: return f"{s}{val/1_000_000:,.2f}M"
+        if abs(val) >= 1_000: return f"{s}{val:,.2f}"
+        return f"{s}{val:.2f}"
     except: return str(val)
 
 def generate_response(query, dataset_path, secret_key):
@@ -152,6 +166,12 @@ def generate_response(query, dataset_path, secret_key):
     best_intent = forced_intent if forced_intent else model.classes_[np.argmax(probs)]
     confidence = np.max(probs)
 
+    intro = random.choice(INTROS)
+    if filter_applied:
+        intro = f"Filtering for {filter_applied}, " + intro.lower()
+    
+    outro = random.choice(OUTROS)
+
     if not forced_intent and confidence < 0.08:
         # Check if they just mentioned a column
         found_col = next((c for c in df.columns if c.lower() in query.lower()), None)
@@ -162,12 +182,6 @@ def generate_response(query, dataset_path, secret_key):
                 top_v = df[found_col].mode()[0] if not df[found_col].empty else "N/A"
                 return f"🔍 Looking at **{found_col}**, the most common value is **{top_v}**. {outro}"
         return "🤔 I'm not entirely sure I understood that perfectly! Could you ask me specifically about your **total profit**, **top categories**, **average values**, **trends**, or **size**? I'm eager to help! 😊"
-
-    intro = random.choice(INTROS)
-    if filter_applied:
-        intro = f"Filtering for {filter_applied}, " + intro.lower()
-    
-    outro = random.choice(OUTROS)
 
     # ── GREETING ──
     if best_intent == "greeting":
@@ -265,11 +279,11 @@ def analyze_dataset(dataset_path, secret_key):
     """Deep AI Analysis with Pattern Recognition"""
     try:
         if not os.path.exists(dataset_path):
-            return {"error": "Dataset file not found"}
+            return {"error": "Dataset file not found. Please re-upload."}
         df = decrypt_file_to_df(dataset_path, secret_key)
     except Exception as e:
         print(f"Analysis Decryption error: {e}")
-        return {"error": "Dataset decryption failed. Please re-upload the file."}
+        return {"error": "Decryption failed. Please re-upload the file to fix security keys."}
 
     val_col, cat_col, date_col, numeric_cols, currency = profile_dataset(df)
     num_rows, num_cols = df.shape

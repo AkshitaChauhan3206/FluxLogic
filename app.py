@@ -310,9 +310,12 @@ def dataset_dashboard(dataset_id):
     file_path = DATA_DIR / dataset.filename
     try:
         df = decrypt_file_to_df(file_path, app.secret_key)
+    except FileNotFoundError:
+        flash("The dataset file was lost (likely due to a server restart). Please re-upload it.", "error")
+        return redirect(url_for("datasets"))
     except Exception as e:
-        print(e)
-        flash("Unable to securely access this dataset.", "error")
+        print(f"Dashboard Access Error: {e}")
+        flash("Decryption failed. Please re-upload this dataset.", "error")
         return redirect(url_for("datasets"))
     
     from nlp_engine import detect_currency
@@ -427,10 +430,15 @@ def dataset_predictions(dataset_id):
     if dataset.user_id != current_user.id:
         return redirect(url_for("datasets"))
     
+    file_path = DATA_DIR / dataset.filename
     try:
         df = decrypt_file_to_df(file_path, app.secret_key)
-    except:
-        flash("Unable to access dataset for predictions.", "error")
+    except FileNotFoundError:
+        flash("Dataset file not found. Please re-upload it.", "error")
+        return redirect(url_for("datasets"))
+    except Exception as e:
+        print(f"Prediction Access Error: {e}")
+        flash("Decryption failed for predictions. Please re-upload.", "error")
         return redirect(url_for("datasets"))
         
     analysis = analyze_dataset(file_path, app.secret_key)
@@ -448,7 +456,7 @@ def dataset_predictions(dataset_id):
 
 @app.errorhandler(404)
 def not_found(e):
-    return render_template("login.html"), 404
+    return render_template("index.html"), 404
 
 @app.errorhandler(500)
 def server_error(e):
