@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - {{ dataset.original_name }}{% endblock %}
+
+{% block content %}
+<!-- Hidden block shown only during print -->
+<div class="print-title-block" style="display:none;">
+    <h2>FluxLogic &mdash; Intelligence Dashboard Report</h2>
+    <p>Dataset: <strong>{{ dataset.original_name }}</strong> &nbsp;|&nbsp; Generated: <span id="print-date"></span></p>
+</div>
+
+<div class="dashboard-container">
+    <div class="header-flex">
+        <div class="header-text">
+            <div class="breadcrumb">
+                <a href="{{ url_for('datasets') }}">Datasets</a> &rarr;
+                <a href="{{ url_for('dataset_options', dataset_id=dataset.id) }}">{{ dataset.original_name }}</a> &rarr;
+                <span>Analytics Dashboard</span>
+            </div>
+            <h1>Intelligence Dashboard</h1>
+            <p>Visual analysis for <strong>{{ dataset.original_name }}</strong></p>
+        </div>
+        <div class="actions">
+            <button onclick="printDashboard()" class="btn-print"><i class="fas fa-file-pdf"></i> Save / Print
+                Report</button>
+        </div>
+    </div>
+
+    <div id="chart-data-bridge" data-charts='{{ charts | tojson | safe }}' style="display:none;"></div>
+    
+    <div class="charts-grid">
+        {% if charts %}
+        {% for chart in charts %}
+        <div class="chart-card {% if chart.type == 'line' or loop.index == 1 %}full-width{% endif %}">
+            <div class="card-header">
+                <h2 class="chart-title">{{ chart.title }}</h2>
+                <span class="live-badge"><i class="fas fa-circle"></i> Live Data</span>
+            </div>
+
+            <div class="canvas-wrapper">
+                <canvas id="chart-{{ loop.index }}"></canvas>
+            </div>
+
+            <div class="chart-footer">
+                <div class="ai-insight-box">
+                    <div class="ai-header">
+                        <i class="fas fa-magic"></i>
+                        <span>AI Business Insight</span>
+                    </div>
+                    <p>{{ chart.description | safe }}</p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-chart-line"></i>
+            <h3>No visualizations generated</h3>
+            <p>Ensure your dataset contains numeric and categorical columns for analysis.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const isLight = document.body.getAttribute('data-theme') === 'light';
+    const mainTextColor = isLight ? '#020617' : '#f1f5f9';
+    const mutedTextColor = isLight ? '#475569' : '#94a3b8';
+    const gridColor = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.15)';
+    const axisColor = isLight ? '#020617' : '#f1f5f9';
+
+    // Global Chart.js Defaults
+    Chart.defaults.color = mainTextColor;
+    Chart.defaults.font.family = "'Outfit', sans-serif";
+    Chart.defaults.font.size = 14;
+
+    const createChart = (id, type, labels, data, title) => {
+        const ctx = document.getElementById(id).getContext('2d');
+        const colors = [
+            '#6366f1', '#10b981', '#f59e0b', '#f43f5e', '#06b6d4',
+            '#8b5cf6', '#d946ef', '#ec4899', '#f97316', '#14b8a6'
+        ];
+
+        const isCircular = ['pie', 'doughnut'].includes(type);
+
+        new Chart(ctx, {
+            type: type,
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: title,
+                    data: data,
+                    backgroundColor: isCircular ? colors : (type === 'line' ? 'rgba(99, 102, 241, 0.2)' : '#6366f1'),
+                    borderColor: isCircular ? '#ffffff' : '#6366f1',
+                    borderWidth: isCircular ? 2 : 3,
+                    tension: 0.4,
+                    fill: type === 'line',
+                    pointBackgroundColor: '#6366f1',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: !isCircular,
+                aspectRatio: isCircular ? 2 : undefined,
+                animation: { duration: 1500, easing: 'easeOutQuart' },
+                plugins: {
+                    legend: {
+                        display: isCircular,
+                        position: 'bottom',
+                        labels: {
+                            color: mainTextColor,
+                            font: { size: 12, weight: '600' },
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        padding: 12,
+                        backgroundColor: isLight ? 'rgba(255,255,255,0.9)' : 'rgba(30, 41, 59, 0.9)',
+                        titleColor: mainTextColor,
+                        bodyColor: mainTextColor,
+                        borderColor: '#6366f1',
+                        borderWidth: 1,
+                        displayColors: false,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed.y !== null) {
+                                    label += '{{ currency }}' + context.parsed.y.toLocaleString();
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: isCircular ? {} : {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: gridColor, drawBorder: false },
+                        ticks: { color: mutedTextColor, font: { size: 11 } }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: mutedTextColor, font: { size: 11 } }
+                    }
+                }
+            }
+        });
+    };
+
+    const bridge = document.getElementById('chart-data-bridge');
+    if (bridge && bridge.dataset.charts) {
+        const chartData = JSON.parse(bridge.dataset.charts);
+        chartData.forEach((chart, index) => {
+            createChart(
+                `chart-${index + 1}`,
+                chart.type,
+                chart.labels,
+                chart.data,
+                chart.title
+            );
+        });
+    }
+
+    function printDashboard() {
+        const dateEl = document.getElementById('print-date');
+        if (dateEl) dateEl.textContent = new Date().toLocaleString();
+
+        const wrappers = document.querySelectorAll('.canvas-wrapper');
+        const snapshots = [];
+
+        wrappers.forEach(wrapper => {
+            const canvas = wrapper.querySelector('canvas');
+            if (!canvas) return;
+
+            const dataUrl = canvas.toDataURL('image/png', 1.0);
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.className = 'print-chart-img';
+            img.style.width = '100%';
+            img.style.height = 'auto';
+            img.style.display = 'block';
+
+            canvas.style.display = 'none';
+            wrapper.appendChild(img);
+            snapshots.push({ wrapper, canvas, img });
+        });
+
+        setTimeout(() => {
+            window.print();
+        }, 500);
+
+        function restoreCanvases() {
+            snapshots.forEach(({ wrapper, canvas, img }) => {
+                canvas.style.display = '';
+                if (img.parentNode === wrapper) wrapper.removeChild(img);
+            });
+            window.removeEventListener('afterprint', restoreCanvases);
+        }
+        window.addEventListener('afterprint', restoreCanvases);
+    }
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .print-title-block {
+        display: none;
+    }
+
+    .dashboard-container {
+        width: 100%;
+        max-width: 100%;
+        padding-bottom: 60px;
+    }
+
+    .header-flex {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 32px;
+        gap: 20px;
+    }
+
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 32px;
+        width: 100%;
+    }
+
+    .chart-card.full-width {
+        grid-column: span 2;
+    }
+
+    @media (max-width: 1200px) {
+        .charts-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .chart-card.full-width {
+            grid-column: span 1;
+        }
+    }
+
+    .chart-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 32px;
+        padding: 32px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+
+    .chart-title {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--text-main);
+    }
+
+    .canvas-wrapper {
+        position: relative;
+        height: 450px;
+        width: 100%;
+        margin-bottom: 24px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    canvas {
+        max-width: 100% !important;
+        max-height: 100% !important;
+    }
+
+    .chart-footer {
+        border-top: 1px solid var(--border);
+        padding-top: 24px;
+    }
+
+    .ai-insight-box {
+        background: var(--bg-card-inner);
+        padding: 24px;
+        border-radius: 24px;
+        border: 1px solid var(--border);
+    }
+
+    .ai-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        color: var(--primary);
+    }
+
+    .ai-header i {
+        font-size: 20px;
+    }
+
+    .ai-header span {
+        font-weight: 800;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .ai-insight-box p {
+        font-size: 1.2rem;
+        color: var(--text-main);
+        line-height: 1.8;
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .btn-print {
+        background: #1e293b;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-print:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    }
+
+    @media print {
+        * {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: block !important;
+        }
+
+        .sidebar,
+        .sidebar-overlay,
+        .mobile-header,
+        .actions,
+        .breadcrumb,
+        .live-badge {
+            display: none !important;
+        }
+
+        .main-content {
+            margin-left: 0 !important;
+            padding: 20px !important;
+            width: 100% !important;
+        }
+
+        .dashboard-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .print-title-block {
+            display: block !important;
+            text-align: center;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 16px;
+        }
+
+        .print-title-block h2 {
+            font-size: 22px;
+            color: #000 !important;
+        }
+
+        .print-title-block p {
+            font-size: 13px;
+            color: #555 !important;
+        }
+
+        .header-text h1 {
+            font-size: 26px !important;
+            color: #000 !important;
+        }
+
+        .header-text p {
+            color: #444 !important;
+        }
+
+        .chart-card {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            border: 2px solid #cccccc !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+            margin-bottom: 36px;
+            border-radius: 8px !important;
+            overflow: visible !important;
+        }
+
+        .print-chart-img {
+            width: 100% !important;
+            height: auto !important;
+            display: block;
+        }
+
+        .canvas-wrapper {
+            height: auto !important;
+        }
+
+        .chart-title {
+            color: #000000 !important;
+            font-size: 18px !important;
+        }
+
+        .chart-footer {
+            border-top: 1px solid #ccc !important;
+        }
+
+        .ai-insight-box {
+            background: #f5f5f5 !important;
+            border: 1px solid #ccc !important;
+            border-radius: 8px !important;
+        }
+
+        .ai-insight-box p {
+            color: #000 !important;
+            font-size: 14px !important;
+        }
+
+        .ai-header {
+            color: #4f46e5 !important;
+        }
+
+        @page {
+            size: A4 portrait;
+            margin: 15mm;
+        }
+    }
+</style>
+{% endblock %}

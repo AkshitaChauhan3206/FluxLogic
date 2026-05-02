@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% block title %}Deep Analysis - {{ dataset.original_name }}{% endblock %}
+
+{% block content %}
+<div class="predictions-container">
+    <div class="header-flex">
+        <div class="header-text">
+            <div class="breadcrumb">
+                <a href="{{ url_for('datasets') }}">Datasets</a> &rarr; 
+                <a href="{{ url_for('dataset_options', dataset_id=dataset.id) }}">{{ dataset.original_name }}</a> &rarr; 
+                <span>Deep Analysis</span>
+            </div>
+            <h1>Deep Analysis & Predictions</h1>
+            <p>Comprehensive performance audit and strategic business roadmap.</p>
+        </div>
+    </div>
+
+    {% if analysis.error %}
+        <div class="error-panel">
+            <i class="fas fa-lock"></i>
+            <h3>Security Key Mismatch</h3>
+            <p>{{ analysis.error }}</p>
+            <p class="small">This typically happens when server security keys are reset. Please re-upload your dataset to re-secure it with the current keys.</p>
+            <a href="{{ url_for('datasets') }}" class="btn-primary" style="display:inline-block; margin-top:20px; text-decoration:none; padding:10px 20px; border-radius:10px;">Back to Datasets</a>
+        </div>
+    {% else %}
+
+    <div class="analysis-grid">
+        <!-- Executive Summary -->
+        <div class="analysis-card full-width summary-card">
+            <div class="card-icon"><i class="fas fa-brain"></i></div>
+            <div class="card-body">
+                <h3>Executive Summary</h3>
+                <p>{{ analysis.summary }}</p>
+                {% if analysis.pareto %}
+                <div class="pareto-insight">
+                    <i class="fas fa-chart-line"></i>
+                    <span><strong>Pareto Pattern Found:</strong> {{ analysis.pareto }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 7-Day Forecast Section -->
+        {% if forecast and forecast.status == 'ok' %}
+        <div class="analysis-card full-width forecast-card">
+            <div class="forecast-header">
+                <h3><i class="fas fa-crystal-ball"></i> 7-Day Performance Forecast</h3>
+                <span class="currency-tag">Currency: {{ currency }}</span>
+            </div>
+            <div class="forecast-content">
+                <div class="forecast-chart-container">
+                    <canvas id="forecastChart"></canvas>
+                </div>
+                <div class="forecast-stats">
+                    {% for pred in forecast.predictions %}
+                    <div class="forecast-item">
+                        <div class="forecast-date">{{ pred.date }}</div>
+                        <div class="forecast-value">{{ currency }}{{ pred.value }}</div>
+                        <div class="forecast-purpose">{{ pred.purpose }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% elif forecast and forecast.status == 'error' %}
+        <div class="analysis-card full-width warning-border">
+            <h3><i class="fas fa-info-circle"></i> Forecasting Unavailable</h3>
+            <p>{{ forecast.message }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Hidden Patterns -->
+        {% if analysis.patterns %}
+        <div class="analysis-card full-width patterns-card">
+            <h3><i class="fas fa-search"></i> Detected Hidden Patterns (Correlations)</h3>
+            <div class="patterns-grid">
+                {% for pattern in analysis.patterns %}
+                <div class="pattern-item">
+                    <i class="fas fa-link"></i>
+                    <p>{{ pattern }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Numeric Stats -->
+        <div class="analysis-card full-width">
+            <h3><i class="fas fa-table"></i> Numeric Column Statistics</h3>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Column</th>
+                            <th class="text-right">Total</th>
+                            <th class="text-right">Average</th>
+                            <th class="text-right">Min</th>
+                            <th class="text-right">Max</th>
+                            <th class="text-right">Std Dev</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in analysis.numeric_stats %}
+                        <tr>
+                            <td class="font-bold">{{ stat.column }}</td>
+                            <td class="text-right text-primary">{{ stat.total }}</td>
+                            <td class="text-right">{{ stat.average }}</td>
+                            <td class="text-right text-muted">{{ stat.min }}</td>
+                            <td class="text-right text-muted">{{ stat.max }}</td>
+                            <td class="text-right text-muted font-mono">{{ stat.std }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Top Performers -->
+        <div class="analysis-card success-border">
+            <h3><i class="fas fa-trophy"></i> Top Performers</h3>
+            <p class="subtitle">Highest performing segments by {{ analysis.val_col }}</p>
+            <div class="rank-list">
+                {% for p in analysis.top_performers %}
+                <div class="rank-item">
+                    <span class="rank-num">#{{ loop.index }}</span>
+                    <span class="rank-name">{{ p.name }}</span>
+                    <span class="rank-val">{{ p.value }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Weak Performers -->
+        <div class="analysis-card danger-border">
+            <h3><i class="fas fa-exclamation-circle"></i> Needs Attention</h3>
+            <p class="subtitle">Lowest performing segments — high risk areas</p>
+            <div class="rank-list">
+                {% for p in analysis.weak_performers %}
+                <div class="rank-item danger">
+                    <span class="rank-num">#{{ loop.index }}</span>
+                    <span class="rank-name">{{ p.name }}</span>
+                    <span class="rank-val">{{ p.value }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- AI Recommendation -->
+        <div class="analysis-card full-width advice-card">
+            <div class="card-icon"><i class="fas fa-lightbulb"></i></div>
+            <div class="card-body">
+                <h3>Strategic AI Recommendation</h3>
+                <p>{{ analysis.recommendation }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if forecast and forecast.status == 'ok' %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('forecastChart').getContext('2d');
+        const forecastData = {{ forecast.predictions | tojson }};
+        
+        const labels = forecastData.map(p => p.date);
+        const values = forecastData.map(p => p.value);
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Projected Performance ({{ currency }})',
+                    data: values,
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    borderWidth: 4,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#6366f1',
+                    pointRadius: 6,
+                    pointHoverRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#94a3b8' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#94a3b8' }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endif %}
+
+<style>
+    .predictions-container { max-width: 1100px; margin: 0 auto; padding-bottom: 50px; }
+    .header-flex { margin-bottom: 40px; }
+    .breadcrumb { margin-bottom: 12px; color: var(--text-muted); font-size: 13px; }
+    .breadcrumb a { color: var(--primary); text-decoration: none; }
+    .header-text h1 { font-size: 32px; font-weight: 800; color: var(--text-main); }
+    .header-text p { color: var(--text-muted); }
+
+    .analysis-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+    @media (min-width: 768px) { .analysis-grid { grid-template-columns: 1fr 1fr; } }
+    .full-width { grid-column: 1 / -1; }
+    .analysis-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 24px; padding: 32px; }
+    .analysis-card h3 { font-size: 20px; font-weight: 800; color: var(--text-main); margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+    .analysis-card .subtitle { font-size: 14px; color: var(--text-muted); margin-top: -15px; margin-bottom: 20px; }
+
+    .summary-card, .advice-card { display: flex; gap: 24px; align-items: flex-start; }
+    .summary-card { border-color: var(--primary); background: var(--bg-card-inner); }
+    .advice-card { border-color: #fbbf24; background: rgba(251, 191, 36, 0.05); }
+
+    .card-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+    .summary-card .card-icon { background: var(--primary); color: white; }
+    .advice-card .card-icon { background: #fbbf24; color: #000; }
+    
+    .card-body h3 { margin-bottom: 8px; color: var(--text-main); }
+    .card-body p { color: var(--text-muted); line-height: 1.7; font-size: 17px; margin-bottom: 16px; font-weight: 500; }
+    
+    .forecast-card { background: var(--bg-card); border-color: var(--primary); }
+    .forecast-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .currency-tag { background: var(--primary); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 800; }
+    .forecast-content { display: flex; flex-direction: column; gap: 24px; }
+    @media (min-width: 992px) { .forecast-content { flex-direction: row; } }
+    .forecast-chart-container { flex: 2; height: 300px; min-width: 0; }
+    .forecast-stats { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+    .forecast-item { background: var(--bg-card-inner); padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); display: grid; grid-template-columns: 1fr 1fr; }
+    .forecast-date { font-size: 13px; color: var(--text-muted); }
+    .forecast-value { font-weight: 800; color: #22c55e; text-align: right; }
+    .forecast-purpose { grid-column: span 2; font-size: 11px; color: var(--primary); margin-top: 4px; font-weight: 700; text-transform: uppercase; }
+
+    .pareto-insight { background: var(--bg-card); padding: 16px 20px; border-radius: 16px; display: flex; align-items: center; gap: 12px; font-size: 15px; color: var(--text-main); border-left: 4px solid var(--primary); font-weight: 600; }
+    .pareto-insight i { color: #22c55e; }
+
+    .patterns-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 640px) { .patterns-grid { grid-template-columns: 1fr 1fr; } }
+    .pattern-item { background: var(--bg-card-inner); padding: 16px; border-radius: 16px; display: flex; gap: 12px; align-items: center; border: 1px solid var(--border); }
+    .pattern-item i { color: var(--primary); font-size: 14px; }
+    .pattern-item p { margin: 0; font-size: 15px; color: var(--text-main); line-height: 1.5; font-weight: 600; }
+
+    .table-responsive { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th { text-align: left; padding: 12px; font-size: 12px; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+    td { padding: 16px 12px; font-size: 14px; border-bottom: 1px dotted var(--border); }
+    .text-right { text-align: right; }
+    .text-primary { color: var(--primary); font-weight: 700; }
+    .font-mono { font-family: monospace; }
+
+    .rank-list { display: flex; flex-direction: column; gap: 12px; }
+    .rank-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--bg-card-inner); border-radius: 12px; border: 1px solid var(--border); }
+    .rank-num { font-weight: 800; color: var(--primary); width: 30px; }
+    .rank-name { flex: 1; font-weight: 700; color: var(--text-main); }
+    .rank-val { font-weight: 800; color: #22c55e; }
+    .danger-border { border-color: rgba(239, 68, 68, 0.3); }
+    .warning-border { border-color: #f59e0b; background: rgba(245, 158, 11, 0.05); }
+    .rank-item.danger .rank-num, .rank-item.danger .rank-val { color: #ef4444; }
+
+    .error-panel { text-align: center; padding: 60px; background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.1); border-radius: 24px; }
+    .error-panel i { font-size: 48px; color: #ef4444; margin-bottom: 20px; }
+    .error-panel h3 { color: var(--text-main); margin-bottom: 10px; font-size: 24px; }
+    .error-panel p { color: var(--text-muted); margin-bottom: 5px; }
+    .error-panel .small { font-size: 13px; margin-top: 10px; }
+</style>
+{% endblock %}

@@ -107,7 +107,7 @@ def login():
                 session["temp_user_id"] = user.id
                 return redirect(url_for("verify_2fa"))
             
-            login_user(user)
+            login_user(user, remember=True)
             add_log("User logged in")
             return redirect(url_for("datasets"))
 
@@ -130,7 +130,7 @@ def verify_2fa():
         pin = request.form.get("pin")
         totp = pyotp.TOTP(user.two_factor_secret)
         if totp.verify(pin):
-            login_user(user)
+            login_user(user, remember=True)
             session.pop("temp_user_id")
             add_log("User logged in (2FA)")
             return redirect(url_for("datasets"))
@@ -315,16 +315,22 @@ def dataset_dashboard(dataset_id):
         flash("Unable to securely access this dataset.", "error")
         return redirect(url_for("datasets"))
     
+    from nlp_engine import detect_currency
+    currency = detect_currency(df)
+
     # 1) Find Date Column first
     date_col = None
     for c in df.columns:
         if pd.api.types.is_datetime64_any_dtype(df[c]):
             date_col = c
             break
-        elif df[c].dtype == object and df[c].astype(str).str.match(r'^\d{4}-\d{2}-\d{2}').mean() > 0.3:
-            df[c] = pd.to_datetime(df[c], errors='coerce')
-            date_col = c
-            break
+        try:
+            sample = df[c].dropna().head(10).astype(str)
+            if sample.str.match(r'^\d{4}-\d{2}-\d{2}').mean() > 0.3:
+                df[c] = pd.to_datetime(df[c], errors='coerce')
+                date_col = c
+                break
+        except: pass
 
     charts = []
     numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
@@ -361,7 +367,7 @@ def dataset_dashboard(dataset_id):
             "description": f"Visual breakdown of the most frequent segments within the {col} category."
         })
 
-    return render_template("dynamic_dashboard.html", dataset=dataset, charts=charts)
+    return render_template("dynamic_dashboard.html", dataset=dataset, charts=charts, currency=currency)
 
 @app.route("/dataset/<int:dataset_id>/chat", methods=["GET", "POST"])
 @login_required
@@ -421,11 +427,20 @@ def dataset_predictions(dataset_id):
     if dataset.user_id != current_user.id:
         return redirect(url_for("datasets"))
     
-    file_path = DATA_DIR / dataset.filename
+    try:
+        df = decrypt_file_to_df(file_path, app.secret_key)
+    except:
+        flash("Unable to access dataset for predictions.", "error")
+        return redirect(url_for("datasets"))
+        
     analysis = analyze_dataset(file_path, app.secret_key)
-    forecast = train_sales_forecast()
+    forecast = train_sales_forecast(df)
     
-    return render_template("predictions.html", dataset=dataset, analysis=analysis, forecast=forecast)
+    # Get currency for the template
+    from nlp_engine import detect_currency
+    currency = detect_currency(df)
+    
+    return render_template("predictions.html", dataset=dataset, analysis=analysis, forecast=forecast, currency=currency)
 
 # ───────────────────────────────
 # ERROR HANDLING
